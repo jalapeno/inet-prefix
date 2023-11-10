@@ -1,1 +1,1 @@
-# unicast prefix v4 extended
+# ebgp extended
