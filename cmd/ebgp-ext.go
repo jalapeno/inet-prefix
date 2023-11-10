@@ -100,7 +100,7 @@ func main() {
 	dbSrv, err := arangodb.NewDBSrvClient(dbSrvAddr, dbUser, dbPass, dbName,
 		peer, unicastprefixV4, unicastprefixV6, peerEdgeV4, peerEdgeV6, unicastprefixEdgeV4, unicastprefixEdgeV6)
 	if err != nil {
-		glog.Errorf("failed to initialize databse client with error: %+v", err)
+		glog.Errorf("failed to initialize database client with error: %+v", err)
 		os.Exit(1)
 	}
 
