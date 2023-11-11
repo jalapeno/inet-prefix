@@ -1,7 +1,7 @@
 REGISTRY_NAME?=docker.io/iejalapeno
 IMAGE_VERSION?=latest
 
-.PHONY: all ebgp-ext container push clean test
+.PHONY: all inet-prefix container push clean test
 
 ifdef V
 TESTARGS = -v -args -alsologtostderr -v 5
@@ -9,17 +9,17 @@ else
 TESTARGS =
 endif
 
-all: ebgp-ext
+all: inet-prefix
 
-ebgp-ext:
+inet-prefix:
 	mkdir -p bin
-	$(MAKE) -C ./cmd compile-ebgp-ext
+	$(MAKE) -C ./cmd compile-inet-prefix
 
-ebgp-ext-container: ebgp-ext
-	docker build -t $(REGISTRY_NAME)/ebgp-ext:$(IMAGE_VERSION) -f ./build/Dockerfile.ebgp-ext .
+inet-prefix-container: inet-prefix
+	docker build -t $(REGISTRY_NAME)/inet-prefix:$(IMAGE_VERSION) -f ./build/Dockerfile.inet-prefix .
 
-push: ebgp-ext-container
-	docker push $(REGISTRY_NAME)/ebgp-ext:$(IMAGE_VERSION)
+push: inet-prefix-container
+	docker push $(REGISTRY_NAME)/inet-prefix:$(IMAGE_VERSION)
 
 clean:
 	rm -rf bin

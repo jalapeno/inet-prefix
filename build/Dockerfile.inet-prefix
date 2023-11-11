@@ -1,0 +1,4 @@
+FROM scratch
+
+COPY ./bin/inet-prefix /inet-prefix
+ENTRYPOINT ["/inet-prefix"]

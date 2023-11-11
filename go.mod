@@ -1,4 +1,4 @@
-module www.github.com/jalapeno/ebgp-ext
+module www.github.com/jalapeno/inet-prefix
 
 go 1.17
 
