@@ -3,7 +3,6 @@ package arangodb
 import (
 	"context"
 	"encoding/json"
-	"strconv"
 
 	driver "github.com/arangodb/go-driver"
 	"github.com/golang/glog"
@@ -55,7 +54,6 @@ func NewDBSrvClient(arangoSrv, user, pass, dbname, unicastprefixV4, unicastprefi
 	if err != nil {
 		return nil, err
 	}
-
 	// check for inet4 collection
 	found, err := arango.db.CollectionExists(context.TODO(), inetprefixV4)
 	if err != nil {
@@ -70,7 +68,6 @@ func NewDBSrvClient(arangoSrv, user, pass, dbname, unicastprefixV4, unicastprefi
 			return nil, err
 		}
 	}
-
 	// check for inet6 collection
 	found, err = arango.db.CollectionExists(context.TODO(), inetprefixV6)
 	if err != nil {
@@ -85,7 +82,6 @@ func NewDBSrvClient(arangoSrv, user, pass, dbname, unicastprefixV4, unicastprefi
 			return nil, err
 		}
 	}
-
 	// create unicast prefix V4 edge collection
 	var inetV4_options = &driver.CreateCollectionOptions{ /* ... */ }
 	arango.inetprefixV4, err = arango.db.CreateCollection(context.TODO(), "inet_prefix_v4", inetV4_options)
@@ -97,7 +93,6 @@ func NewDBSrvClient(arangoSrv, user, pass, dbname, unicastprefixV4, unicastprefi
 	if err != nil {
 		return nil, err
 	}
-
 	// create unicast prefix V6 edge collection
 	var inetV6_options = &driver.CreateCollectionOptions{ /* ... */ }
 	arango.inetprefixV6, err = arango.db.CreateCollection(context.TODO(), "inet_prefix_v6", inetV6_options)
@@ -109,7 +104,6 @@ func NewDBSrvClient(arangoSrv, user, pass, dbname, unicastprefixV4, unicastprefi
 	if err != nil {
 		return nil, err
 	}
-
 	return arango, nil
 }
 
@@ -149,7 +143,6 @@ func (a *arangoDB) StoreMessage(msgType dbclient.CollectionType, msg []byte) err
 	case bmp.UnicastPrefixV6Msg:
 		return a.unicastV6Handler(event)
 	}
-
 	return nil
 }
 
@@ -157,62 +150,16 @@ func (a *arangoDB) monitor() {
 	for {
 		select {
 		case <-a.stop:
-			// TODO Add clean up of connection with Arango DB
 			return
 		}
 	}
 }
 
-// func (a *arangoDB) loadCollection() error {
-// 	ctx := context.TODO()
-// 	inet4_query := "for l in unicast_prefix_v4 " +
-// 		"filter l.prefix_len < 25 filter l.remote_asn != l.origin_as filter l.base_attrs.local_pref == null "
-// 	inet4_query += "return l "
-// 	cursor, err := a.db.Query(ctx, inet4_query, nil)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	defer cursor.Close()
-// 	for {
-// 		var p message.UnicastPrefix
-// 		e, err := cursor.ReadDocument(ctx, &p)
-// 		if driver.IsNoMoreDocuments(err) {
-// 			break
-// 		} else if err != nil {
-// 			return err
-// 		}
-// 		glog.Infof("processing prefix %+v as %+v", p.Key, p.Prefix+"_"+strconv.Itoa(int(p.PrefixLen)))
-
-// 		ne := inetPrefix{
-// 			Key:       p.Prefix + "_" + strconv.Itoa(int(p.PrefixLen)),
-// 			Prefix:    p.Prefix,
-// 			PrefixLen: p.PrefixLen,
-// 			OriginAS:  p.OriginAS,
-// 		}
-// 		if _, err := a.inetprefixV4.CreateDocument(ctx, ne); err != nil {
-// 			glog.Infof("adding inet4 prefix: %+v ", ne)
-// 			if !driver.IsConflict(err) {
-// 				return err
-// 			}
-// 			// The document already exists, updating it with the latest info
-// 			if _, err := a.inetprefixV4.UpdateDocument(ctx, ne.Key, e); err != nil {
-// 				return err
-// 			}
-// 			// if err := a.processInet4(ctx, p.Key, &p); err != nil {
-// 			// 	glog.Errorf("Failed to process inet4 prefix %s with error: %+v", p.ID, err)
-
-// 			return nil
-// 		}
-// 	}
-// 	return nil
-// }
-
 func (a *arangoDB) loadCollection() error {
 	ctx := context.TODO()
-	inet4_query := "for l in unicast_prefix_v4 " +
-		"filter l.prefix_len < 25 filter l.remote_asn != l.origin_as filter l.base_attrs.local_pref == null "
-	inet4_query += "return l "
-	cursor, err := a.db.Query(ctx, inet4_query, nil)
+	v4_query := "for l in unicast_prefix_v4 filter l.prefix_len < 26 " +
+		"filter l.remote_asn != l.origin_as filter l.base_attrs.local_pref == null return l"
+	cursor, err := a.db.Query(ctx, v4_query, nil)
 	if err != nil {
 		return err
 	}
@@ -225,64 +172,30 @@ func (a *arangoDB) loadCollection() error {
 		} else if err != nil {
 			return err
 		}
-		if err := a.processInet4b(ctx, meta.Key, meta.ID.String(), p); err != nil {
+		if err := a.processInet4(ctx, meta.Key, meta.ID.String(), p); err != nil {
 			glog.Errorf("Failed to process prefix %s with error: %+v", p.ID, err)
 		}
 	}
-	// cursor, err := a.db.Query(ctx, inet4_query, nil)
-	// if err != nil {
-	// 	return err
-	// }
-	// defer cursor.Close()
-	// for {
-	// 	var p message.UnicastPrefix
-	// 	meta, err := cursor.ReadDocument(ctx, &p)
-	// 	if driver.IsNoMoreDocuments(err) {
-	// 		break
-	// 	} else if err != nil {
-	// 		return err
-	// 	}
-	// 	//glog.Infof("pass prefix meta %+v to processor", meta.Key)
-	// 	if err := a.processInet4(ctx, meta.Key, &p); err != nil {
-	// 		glog.Errorf("Failed to process inet4 prefix %s with error: %+v", p.ID, err)
-	// 	}
-	// }
-
-	inet6_query := "for l in unicast_prefix_v6 " +
-		"filter l.prefix_len < 80 filter l.remote_asn != l.origin_as filter l.base_attrs.local_pref == null "
-	inet4_query += "return l "
-	cursor, err = a.db.Query(ctx, inet6_query, nil)
+	v6_query := "for l in unicast_prefix_v6 filter l.prefix_len < 80 " +
+		"filter l.remote_asn != l.origin_as filter l.base_attrs.local_pref == null return l"
+	cursor, err = a.db.Query(ctx, v6_query, nil)
+	glog.Infof("execute v6 query %+v", v6_query)
 	if err != nil {
 		return err
 	}
 	defer cursor.Close()
 	for {
 		var p message.UnicastPrefix
-		e, err := cursor.ReadDocument(ctx, &p)
+		meta, err := cursor.ReadDocument(ctx, &p)
 		if driver.IsNoMoreDocuments(err) {
 			break
 		} else if err != nil {
 			return err
 		}
-		glog.Infof("processing prefix as %+v", p.Prefix+"_"+strconv.Itoa(int(p.PrefixLen)))
-
-		ne := inetPrefix{
-			Key:       p.Prefix + "_" + strconv.Itoa(int(p.PrefixLen)),
-			Prefix:    p.Prefix,
-			PrefixLen: p.PrefixLen,
-			OriginAS:  p.OriginAS,
-		}
-		if _, err := a.inetprefixV6.CreateDocument(ctx, ne); err != nil {
-			glog.Infof("adding inet4 prefix: %+v ", ne)
-			if !driver.IsConflict(err) {
-				return err
-			}
-			// The document already exists, updating it with the latest info
-			if _, err := a.inetprefixV6.UpdateDocument(ctx, ne.Key, e); err != nil {
-				return err
-			}
-			return nil
+		if err := a.processInet6(ctx, meta.Key, meta.ID.String(), p); err != nil {
+			glog.Errorf("Failed to process prefix %s with error: %+v", p.ID, err)
 		}
 	}
+
 	return nil
 }
