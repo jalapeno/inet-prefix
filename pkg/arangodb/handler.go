@@ -25,7 +25,7 @@ func (a *arangoDB) unicastV4Handler(obj *notifier.EventMessage) error {
 	var o message.UnicastPrefix
 	_, err := a.unicastprefixV4.ReadDocument(ctx, obj.Key, &o)
 	if err != nil {
-		// In case of a LSNode removal notification, reading it will return Not Found error
+		// In case of a prefix removal notification, reading it will return Not Found error
 		if !driver.IsNotFound(err) {
 			return fmt.Errorf("failed to read existing document %s with error: %+v", obj.Key, err)
 		}
@@ -33,18 +33,15 @@ func (a *arangoDB) unicastV4Handler(obj *notifier.EventMessage) error {
 		if obj.Action != "del" {
 			return fmt.Errorf("document %s not found but Action is not \"del\", possible stale event", obj.Key)
 		}
-		glog.V(6).Infof("SRv6 SID deleted: %s for lsnodeExt key: %s ", obj.Action, obj.Key)
-		return a.processPrefixV4Removal(ctx, obj.Key)
+		return a.processInet4Removal(ctx, obj.Key)
 	}
 	switch obj.Action {
 	case "add":
-		if err := a.processInet4(ctx, obj.Key, &o); err != nil {
+		if err := a.processInet4(ctx, obj.Key, obj.ID, o); err != nil {
 			return fmt.Errorf("failed to process action %s for vertex %s with error: %+v", obj.Action, obj.Key, err)
 		}
 	default:
-		// NOOP for update
 	}
-
 	return nil
 }
 
@@ -62,7 +59,7 @@ func (a *arangoDB) unicastV6Handler(obj *notifier.EventMessage) error {
 	var o message.UnicastPrefix
 	_, err := a.unicastprefixV6.ReadDocument(ctx, obj.Key, &o)
 	if err != nil {
-		// In case of a LSNode removal notification, reading it will return Not Found error
+		// In case of a prefix removal notification, reading it will return Not Found error
 		if !driver.IsNotFound(err) {
 			return fmt.Errorf("failed to read existing document %s with error: %+v", obj.Key, err)
 		}
@@ -70,16 +67,14 @@ func (a *arangoDB) unicastV6Handler(obj *notifier.EventMessage) error {
 		if obj.Action != "del" {
 			return fmt.Errorf("document %s not found but Action is not \"del\", possible stale event", obj.Key)
 		}
-		return a.processPrefixV6Removal(ctx, obj.Key)
+		return a.processInet6Removal(ctx, obj.Key)
 	}
 	switch obj.Action {
 	case "add":
-		if err := a.processInet6(ctx, obj.Key, &o); err != nil {
+		if err := a.processInet6(ctx, obj.Key, obj.ID, o); err != nil {
 			return fmt.Errorf("failed to process action %s for vertex %s with error: %+v", obj.Action, obj.Key, err)
 		}
 	default:
-		// NOOP for update
 	}
-
 	return nil
 }
