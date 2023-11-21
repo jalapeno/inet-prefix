@@ -160,6 +160,7 @@ func (a *arangoDB) loadCollection() error {
 	v4_query := "for l in unicast_prefix_v4 filter l.prefix_len < 26 " +
 		"filter l.remote_asn != l.origin_as filter l.base_attrs.local_pref == null return l"
 	cursor, err := a.db.Query(ctx, v4_query, nil)
+	glog.Infof("execute v4 query %+v", v4_query)
 	if err != nil {
 		return err
 	}
@@ -174,6 +175,7 @@ func (a *arangoDB) loadCollection() error {
 		}
 		if err := a.processInet4(ctx, meta.Key, meta.ID.String(), p); err != nil {
 			glog.Errorf("Failed to process prefix %s with error: %+v", p.ID, err)
+			continue
 		}
 	}
 	v6_query := "for l in unicast_prefix_v6 filter l.prefix_len < 80 " +
@@ -194,8 +196,8 @@ func (a *arangoDB) loadCollection() error {
 		}
 		if err := a.processInet6(ctx, meta.Key, meta.ID.String(), p); err != nil {
 			glog.Errorf("Failed to process prefix %s with error: %+v", p.ID, err)
+			continue
 		}
 	}
-
 	return nil
 }

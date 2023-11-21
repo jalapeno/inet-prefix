@@ -13,6 +13,7 @@ func (a *arangoDB) processInet4(ctx context.Context, key, id string, e message.U
 	query := "for l in unicast_prefix_v4 filter l.prefix_len < 26 " +
 		"filter l.remote_asn != l.origin_as filter l.base_attrs.local_pref == null return l"
 	pcursor, err := a.db.Query(ctx, query, nil)
+	glog.Infof("processor query: %+v", query)
 	if err != nil {
 		return err
 	}
@@ -35,7 +36,7 @@ func (a *arangoDB) processInet4(ctx context.Context, key, id string, e message.U
 			OriginAS:  e.OriginAS,
 		}
 		if _, err := a.inetprefixV4.CreateDocument(ctx, &obj); err != nil {
-			glog.Infof("adding prefix: %s", ln.Key)
+			glog.Infof("adding prefix: %+v", e.Prefix+"_"+strconv.Itoa(int(e.PrefixLen)))
 			if !driver.IsConflict(err) {
 				return err
 			}
@@ -96,7 +97,7 @@ func (a *arangoDB) processInet6(ctx context.Context, key, id string, e message.U
 			}
 			break
 		}
-		glog.Infof("document %+v, prefix %v", e.Key, e.Prefix)
+		//glog.Infof("document %+v, prefix %v", e.Key, e.Prefix)
 
 		obj := inetPrefix{
 			Key:       e.Prefix + "_" + strconv.Itoa(int(e.PrefixLen)),
@@ -105,7 +106,7 @@ func (a *arangoDB) processInet6(ctx context.Context, key, id string, e message.U
 			OriginAS:  e.OriginAS,
 		}
 		if _, err := a.inetprefixV6.CreateDocument(ctx, &obj); err != nil {
-			glog.Infof("adding prefix: %s", ln.Key)
+			//glog.Infof("adding prefix: %+v", e.Prefix+"_"+strconv.Itoa(int(e.PrefixLen)))
 			if !driver.IsConflict(err) {
 				return err
 			}
